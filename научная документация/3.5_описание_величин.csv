@@ -1,4 +1,4 @@
-﻿Исходный столбец;Физический смысл;Исходная единица;Преобразование;Единица результата
+﻿source_column;physical_quantity;input_unit;conversion;output_unit
 Date;Дата;дд/мм/гггг;Объединение с Time;datetime
 Time;Время;чч:мм:сс;Объединение с Date;datetime
 Global_active_power;Средняя активная мощность;кВт;Деление на 60;кВт·ч за минуту
