@@ -1,0 +1,16 @@
+{
+  "datasets": {
+    "meter_example.csv": {
+      "columns": {
+        "timestamp": "datetime",
+        "Global_active_power": "power_w"
+      },
+      "units": {
+        "Global_active_power": "W"
+      },
+      "sampling_minutes": 1,
+      "delimiter": ";",
+      "date_format": "%Y-%m-%d %H:%M:%S"
+    }
+  }
+}
