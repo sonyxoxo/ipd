@@ -1,0 +1,21 @@
+{
+  "raw_file": "data/raw/household_power_consumption.zip",
+  "h2_n": 1200,
+  "h2_max_abs_error": {
+    "mae_kw": 4.999999997368221e-09,
+    "rmse_kw": 4.99931648856311e-09,
+    "peak_change_pct": 4.9899879783765755e-09,
+    "profile_coverage_pct": 4.444444812179427e-09
+  },
+  "h3_n": 360,
+  "h3_max_abs_error": {
+    "mae_kw": 4.9647266298080694e-09,
+    "rmse_kw": 4.985755572284312e-09,
+    "peak_change_pct": 4.990081237110644e-09,
+    "profile_coverage_pct": 0.0
+  },
+  "h1_difference_kw": 0.6414045000000002,
+  "h1_5day_blocks_january": 5,
+  "h1_5day_blocks_july": 5,
+  "notes": "Numerical equality by independently constructed pandas/numpy implementation; statistical interpretation must be reviewed separately."
+}
