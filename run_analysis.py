@@ -21,8 +21,14 @@ import pandas as pd
 from ipd_analysis import (
     REPO_ROOT, audit, choose_source, compare_complete_days, convert_energy,
     daily_profiles, export_labplot, hourly_profiles, input_files, load_measurements,
+<<<<<<< HEAD
     missing_experiment, missing_runs, monthly_coverage, monthly_statistics,
     regular_minutes, result_folder, save_csv, select_months, smooth_profiles,
+=======
+    missing_experiment, missing_experiment_robustness, missing_runs, monthly_coverage,
+    monthly_statistics, regular_minutes, result_folder, save_csv,
+    save_run_metadata, select_months, smooth_profiles,
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
 )
 
 
@@ -115,10 +121,17 @@ def plot_month_comparison(minutes, output: Path) -> None:
         months = ["2008-09", "2010-08"]
     else:
         ordered = coverage.sort_values("coverage_record_pct", ascending=False)
+<<<<<<< HEAD
         months = [ordered.iloc[0]["month"], ordered.iloc[-1]["month"]]
     fig, axes = plt.subplots(2, 1, figsize=(12, 6))
     period_index = minutes["timestamp"].dt.to_period("M")
     for axis, month in zip(axes, months):
+=======
+        months = list(dict.fromkeys([ordered.iloc[0]["month"], ordered.iloc[-1]["month"]]))
+    fig, axes = plt.subplots(len(months), 1, figsize=(12, 3.5 * len(months)), squeeze=False)
+    period_index = minutes["timestamp"].dt.to_period("M")
+    for axis, month in zip(axes.flat, months):
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
         part = minutes.loc[period_index.eq(pd.Period(month))]
         axis.plot(part["timestamp"], part["Global_active_power"], linewidth=0.4)
         axis.set(title=f"{month}: исходная минутная мощность", ylabel="Мощность, кВт")
@@ -175,7 +188,17 @@ def plot_missing_experiment(experiment, output: Path) -> None:
         # Тонкая полупрозрачная линия — точное отличие каждой минуты суток.
         difference_axis.plot(hours, difference_kw, color=color, linewidth=0.65, alpha=0.28)
         # Толстая линия — скользящее среднее только для визуального выделения тренда.
+<<<<<<< HEAD
         visible_difference = difference_kw.rolling(15, center=True, min_periods=8).mean()
+=======
+        # Суточный профиль циклический: окно не обрывается на границе суток.
+        pad = 7
+        circular = pd.concat([difference_kw.iloc[-pad:], difference_kw,
+                              difference_kw.iloc[:pad]], ignore_index=True)
+        visible_difference = circular.rolling(15, center=True, min_periods=8).mean().iloc[
+            pad:pad + len(difference_kw)
+        ].to_numpy()
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
         mae_kw = difference_kw.abs().mean()
         difference_axis.plot(hours, visible_difference, color=color, linestyle=line_style,
                              linewidth=2, label=f"{label}, MAE = {mae_kw:.3f} кВт")
@@ -197,6 +220,30 @@ def plot_missing_experiment(experiment, output: Path) -> None:
     plt.close(fig)
 
 
+<<<<<<< HEAD
+=======
+def plot_missing_sensitivity(trials: pd.DataFrame, output: Path) -> None:
+    """Показывает эмпирический разброс ошибок при разных расположениях пропусков."""
+    groups = [trials.loc[trials["scenario"].eq(name), "mae_kw"].dropna().to_numpy()
+              for name in ("random", "continuous")]
+    fig, axis = plt.subplots(figsize=(10, 5.5))
+    axis.boxplot(groups, widths=0.45, showmeans=True,
+                 medianprops={"color": "#17365D", "linewidth": 1.7})
+    colors = ("#D55E00", "#009E73")
+    rng = np.random.default_rng(42)  # только распределение точек по горизонтали
+    for index, (values, color) in enumerate(zip(groups, colors), start=1):
+        axis.scatter(rng.normal(index, 0.045, len(values)), values,
+                     s=13, alpha=0.28, color=color, zorder=2)
+    axis.set_xticks([1, 2], ["Случайные пропуски", "Непрерывный пропуск"])
+    axis.set(title="Зависимость ошибки от расположения 10% пропусков",
+             ylabel="MAE суточного профиля, кВт")
+    axis.grid(axis="y", alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(output, dpi=220)
+    plt.close(fig)
+
+
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
 def plot_complete_days(profiles, output: Path) -> None:
     available_months = profiles["month"].unique().tolist()
     focus_months = [month for month in ("2009-08", "2010-08") if month in available_months]
@@ -206,7 +253,15 @@ def plot_complete_days(profiles, output: Path) -> None:
         group = profiles.loc[profiles["month"].eq(month)]
         time_hours = group["minute_of_day"] / 60
         axis.plot(time_hours, group["all_observations_kw"], label="Все измерения")
+<<<<<<< HEAD
         axis.plot(time_hours, group["complete_days_kw"], label="Только полные сутки")
+=======
+        if group["complete_days_kw"].notna().any():
+            axis.plot(time_hours, group["complete_days_kw"], label="Только полные сутки")
+        else:
+            axis.text(0.5, 0.92, "В этом месяце нет полных суток: сравнение невозможно",
+                      transform=axis.transAxes, ha="center", va="top", fontsize=9)
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
         axis.set(title=month, ylabel="Мощность, кВт")
         axis.grid(alpha=0.25)
         axis.legend()
@@ -259,6 +314,19 @@ def process_one(source: Path) -> Path:
         save_csv(experiment_profiles, output / "05_missing_experiment_profiles.csv")
         save_csv(experiment_metrics, output / "05_missing_experiment_metrics.csv")
         plot_missing_experiment(experiment_profiles, output / "05_missing_experiment.png")
+<<<<<<< HEAD
+=======
+        robustness_trials, robustness_summary = missing_experiment_robustness(minutes)
+        save_csv(robustness_trials, output / "05_missing_robustness_trials.csv")
+        save_csv(robustness_summary, output / "05_missing_robustness_summary.csv")
+        plot_missing_sensitivity(robustness_trials, output / "05_missing_robustness.png")
+    save_run_metadata(source, output, {
+        "selected_months": selected_months,
+        "missing_fraction": 0.1, "random_seed": 2026,
+        "random_repetitions": 100,
+        "block_placement": "nearest_midnight_to_month_center; all_midnights_for_robustness",
+    })
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
     return output
 
 

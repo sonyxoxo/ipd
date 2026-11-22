@@ -7,9 +7,20 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+<<<<<<< HEAD
 from hashlib import sha256
 from pathlib import Path
 import re
+=======
+from datetime import datetime, timezone
+from hashlib import sha256
+from importlib.metadata import version
+import json
+from pathlib import Path
+import platform
+import re
+import subprocess
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
 import zipfile
 
 import numpy as np
@@ -26,6 +37,10 @@ MEASUREMENTS = (
 SEASONAL_EXAMPLE = ("2008-01", "2008-04", "2008-07", "2008-09")
 MISSING_EXAMPLE = ("2009-08", "2010-08")
 VALID_EXTENSIONS = {".txt", ".csv", ".tsv", ".zip"}
+<<<<<<< HEAD
+=======
+CONFIG_PATH = REPO_ROOT / "analysis_config.json"
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
 
 
 def input_files(raw_dir: Path = RAW_DIR) -> list[Path]:
@@ -63,6 +78,30 @@ def choose_source(source: str | Path | None = None) -> Path:
     return files[0]
 
 
+<<<<<<< HEAD
+=======
+def dataset_config(source: Path) -> dict:
+    """Читает явное сопоставление названий/единиц конкретного источника.
+
+    Конфигурация хранится в Git вместе с кодом, а не внутри сессии Colab.
+    """
+    if not CONFIG_PATH.exists():
+        return {}
+    configuration = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    datasets = configuration.get("datasets", {})
+    if not isinstance(datasets, dict):
+        raise ValueError("В analysis_config.json поле datasets должно быть объектом")
+    try:
+        relative_path = source.resolve().relative_to(RAW_DIR.resolve()).as_posix()
+    except ValueError:
+        relative_path = source.name
+    selected = datasets.get(relative_path, datasets.get(source.name, {}))
+    if not isinstance(selected, dict):
+        raise ValueError(f"Конфигурация {source.name} должна быть объектом JSON")
+    return selected
+
+
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
 @contextmanager
 def _source_stream(path: Path):
     """Открывает файл или единственный поддерживаемый файл внутри ZIP."""
@@ -85,20 +124,42 @@ def _source_stream(path: Path):
             yield stream
 
 
+<<<<<<< HEAD
 def load_measurements(source: str | Path | None = None) -> pd.DataFrame:
+=======
+def load_measurements(source: str | Path | None = None, config: dict | None = None) -> pd.DataFrame:
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
     """Один раз читает файл, проверяет схему и создаёт числовую рабочую таблицу.
 
     Допустимы исходные столбцы Date + Time или один столбец datetime/timestamp.
     Для неизвестного формата выводится понятная ошибка, без угадывания физики.
     """
     path = choose_source(source)
+<<<<<<< HEAD
     with _source_stream(path) as stream:
         header = stream.readline().decode("utf-8-sig").strip()
     delimiter = max((";", "\t", ","), key=header.count)
+=======
+    settings = dataset_config(path) if config is None else config
+    columns = settings.get("columns", {})
+    units = settings.get("units", {})
+    if not isinstance(columns, dict) or not isinstance(units, dict):
+        raise ValueError("В конфигурации columns и units должны быть объектами")
+    if settings.get("sampling_minutes", 1) != 1:
+        raise ValueError(
+            f"{path.name}: поддерживаются только поминутные измерения. "
+            "Для другого шага требуется отдельная методика расчёта энергии и профилей."
+        )
+    encoding = settings.get("encoding", "utf-8-sig")
+    with _source_stream(path) as stream:
+        header = stream.readline().decode(encoding).lstrip("\ufeff").strip()
+    delimiter = settings.get("delimiter") or max((";", "\t", ","), key=header.count)
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
     if header.count(delimiter) == 0:
         raise ValueError(f"Не удалось распознать разделитель столбцов в {path.name}")
     with _source_stream(path) as stream:
         raw = pd.read_csv(
+<<<<<<< HEAD
             stream, sep=delimiter, encoding="utf-8-sig", low_memory=False,
             na_values=["?", "", "NA", "N/A", "NULL", "null"],
         )
@@ -111,6 +172,26 @@ def load_measurements(source: str | Path | None = None) -> pd.DataFrame:
     elif "timestamp" in raw or "datetime" in raw:
         time_column = "timestamp" if "timestamp" in raw else "datetime"
         timestamps = pd.to_datetime(raw[time_column], errors="coerce")
+=======
+            stream, sep=delimiter, encoding=encoding, low_memory=False,
+            decimal=settings.get("decimal", "."),
+            na_values=["?", "", "NA", "N/A", "NULL", "null"],
+        )
+    raw.columns = raw.columns.str.strip()
+    date_column = columns.get("Date", "Date")
+    clock_column = columns.get("Time", "Time")
+    timestamp_column = columns.get("timestamp")
+    if timestamp_column is None:
+        timestamp_column = "timestamp" if "timestamp" in raw else "datetime"
+    if date_column in raw and clock_column in raw:
+        timestamps = pd.to_datetime(
+            raw[date_column].astype("string") + " " + raw[clock_column].astype("string"),
+            format=settings.get("date_format", "%d/%m/%Y %H:%M:%S"), errors="coerce",
+        )
+    elif timestamp_column in raw:
+        timestamps = pd.to_datetime(raw[timestamp_column],
+                                    format=settings.get("date_format"), errors="coerce")
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
     else:
         raise ValueError(
             f"{path.name}: нужны Date и Time либо timestamp/datetime. "
@@ -121,7 +202,11 @@ def load_measurements(source: str | Path | None = None) -> pd.DataFrame:
             f"{path.name}: не удалось распознать {int(timestamps.isna().sum())} "
             "временных меток. Проверьте формат дат."
         )
+<<<<<<< HEAD
     present = [name for name in MEASUREMENTS if name in raw]
+=======
+    present = [name for name in MEASUREMENTS if columns.get(name, name) in raw]
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
     if "Global_active_power" not in present:
         raise ValueError(
             f"{path.name}: нет Global_active_power (активная мощность в кВт). "
@@ -130,8 +215,46 @@ def load_measurements(source: str | Path | None = None) -> pd.DataFrame:
     data = pd.DataFrame({"timestamp": timestamps})
     unknown_values = {}
     for name in present:
+<<<<<<< HEAD
         number = pd.to_numeric(raw[name], errors="coerce")
         unknown_values[name] = int((raw[name].notna() & number.isna()).sum())
+=======
+        source_column = columns.get(name, name)
+        if source_column != name and name not in units:
+            raise ValueError(f"{path.name}: задайте физическую единицу units.{name}")
+        number = pd.to_numeric(raw[source_column], errors="coerce")
+        unknown_values[name] = int((raw[source_column].notna() & number.isna()).sum())
+        if name == "Global_active_power":
+            unit = units.get(name, "kW").lower()
+            factor = {"kw": 1.0, "w": 0.001}.get(unit)
+            if factor is None:
+                raise ValueError(f"Не поддерживается единица активной мощности: {unit}")
+            number = number * factor
+        elif name.startswith("Sub_metering_"):
+            unit = units.get(name, "Wh").lower()
+            factor = {"wh": 1.0, "kwh": 1000.0}.get(unit)
+            if factor is None:
+                raise ValueError(f"Не поддерживается единица подсчётчика {name}: {unit}")
+            number = number * factor
+        elif name == "Voltage":
+            unit = units.get(name, "V").lower()
+            factor = {"v": 1.0, "mv": 0.001}.get(unit)
+            if factor is None:
+                raise ValueError(f"Не поддерживается единица напряжения: {unit}")
+            number = number * factor
+        elif name == "Global_intensity":
+            unit = units.get(name, "A").lower()
+            factor = {"a": 1.0, "ma": 0.001}.get(unit)
+            if factor is None:
+                raise ValueError(f"Не поддерживается единица силы тока: {unit}")
+            number = number * factor
+        elif name == "Global_reactive_power":
+            unit = units.get(name, "kVAr").lower()
+            factor = {"kvar": 1.0, "var": 0.001}.get(unit)
+            if factor is None:
+                raise ValueError(f"Не поддерживается единица реактивной мощности: {unit}")
+            number = number * factor
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
         finite = pd.Series(np.isfinite(number.to_numpy(dtype=float)), index=raw.index)
         valid = finite & number.notna()
         if name == "Voltage":
@@ -146,6 +269,10 @@ def load_measurements(source: str | Path | None = None) -> pd.DataFrame:
         "unknown_values": unknown_values,
         "original_rows": len(raw),
         "measurement_columns": present,
+<<<<<<< HEAD
+=======
+        "schema_config": settings,
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
     })
     return data
 
@@ -397,7 +524,15 @@ def missing_experiment(minutes: pd.DataFrame, preferred_month: str = "2008-09", 
     random_missing.loc[rng.choice(len(original), gap_count, replace=False), "Global_active_power"] = np.nan
     scenarios["random"] = random_missing
     block_missing = original.copy()
+<<<<<<< HEAD
     block_start = (len(original) - gap_count) // 2
+=======
+    # Максимально близкий к середине месяца старт в 00:00. Для исходного
+    # сентября 2008 года это ровно 15–17 сентября, как в опубликованном опыте.
+    center_start = (len(original) - gap_count) // 2
+    block_start = min(((center_start + 720) // 1440) * 1440,
+                      len(original) - gap_count)
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
     block_missing.loc[block_start:block_start + gap_count - 1, "Global_active_power"] = np.nan
     scenarios["continuous"] = block_missing
     profiles = []
@@ -418,10 +553,83 @@ def missing_experiment(minutes: pd.DataFrame, preferred_month: str = "2008-09", 
             "missing_count": int(scenario["Global_active_power"].isna().sum()),
             "mean_kw": scenario["Global_active_power"].mean(),
             "mae_kw": differences.abs().mean() if len(differences) else np.nan,
+<<<<<<< HEAD
+=======
+            "missing_start": str(original["timestamp"].iloc[block_start]) if scenario_name == "continuous" else "",
+            "missing_end": str(original["timestamp"].iloc[block_start + gap_count - 1]) if scenario_name == "continuous" else "",
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
         })
     return combined, pd.DataFrame(metrics)
 
 
+<<<<<<< HEAD
+=======
+def missing_experiment_robustness(
+    minutes: pd.DataFrame, preferred_month: str = "2008-09",
+    fraction: float = 0.1, seed: int = 2026, random_repetitions: int = 100,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Оценивает разброс ошибок для случайных пропусков и сдвига блока.
+
+    Для непрерывного пропуска перебираются все возможные старты в 00:00.
+    2,5% и 97,5% — эмпирические квантили сценариев, НЕ доверительный
+    интервал среднего и не вероятностная модель реальных пропусков.
+    """
+    if random_repetitions < 2:
+        raise ValueError("Для оценки разброса требуется минимум два повторения")
+    if not 0 < fraction < 1:
+        raise ValueError("Доля пропусков должна быть между 0 и 1")
+    coverage = monthly_coverage(minutes)
+    eligible = coverage.loc[
+        (coverage["coverage_calendar_pct"] == 100) &
+        (coverage["expected_in_record"] == coverage["expected_calendar"]), "month"
+    ].tolist()
+    if not eligible:
+        return pd.DataFrame(), pd.DataFrame()
+    month = preferred_month if preferred_month in eligible else eligible[0]
+    original = minutes.loc[minutes["timestamp"].dt.strftime("%Y-%m").eq(month)].copy()
+    values = original["Global_active_power"].to_numpy(dtype=float)
+    gap_count = round(len(values) * fraction)
+    if gap_count < 1:
+        return pd.DataFrame(), pd.DataFrame()
+    minute_numbers = (original["timestamp"].dt.hour * 60 + original["timestamp"].dt.minute).to_numpy()
+    baseline = values.reshape(-1, 1440).mean(axis=0)
+    rng = np.random.default_rng(seed)
+    records = []
+
+    def measure(mask: np.ndarray, scenario: str, repetition: int, start: str = "") -> None:
+        observed = ~mask
+        counts = np.bincount(minute_numbers[observed], minlength=1440)
+        sums = np.bincount(minute_numbers[observed], weights=values[observed], minlength=1440)
+        profile = np.divide(sums, counts, out=np.full(1440, np.nan), where=counts > 0)
+        records.append({
+            "month": month, "scenario": scenario, "replicate": repetition,
+            "missing_count": gap_count, "missing_start": start,
+            "mae_kw": float(np.nanmean(np.abs(profile - baseline))),
+            "mean_kw": float(values[observed].mean()),
+        })
+
+    for repetition in range(random_repetitions):
+        mask = np.zeros(len(values), dtype=bool)
+        mask[rng.choice(len(values), size=gap_count, replace=False)] = True
+        measure(mask, "random", repetition + 1)
+
+    for repetition, start_index in enumerate(range(0, len(values) - gap_count + 1, 1440), start=1):
+        mask = np.zeros(len(values), dtype=bool)
+        mask[start_index:start_index + gap_count] = True
+        measure(mask, "continuous", repetition, str(original["timestamp"].iloc[start_index]))
+
+    trials = pd.DataFrame(records)
+    summary = trials.groupby(["month", "scenario"], as_index=False).agg(
+        trials=("mae_kw", "size"), mean_mae_kw=("mae_kw", "mean"),
+        std_mae_kw=("mae_kw", "std"),
+        p025_mae_kw=("mae_kw", lambda series: series.quantile(0.025)),
+        p975_mae_kw=("mae_kw", lambda series: series.quantile(0.975)),
+        min_mae_kw=("mae_kw", "min"), max_mae_kw=("mae_kw", "max"),
+    )
+    return trials, summary
+
+
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
 def result_folder(source: Path) -> Path:
     """Уникальная папка результатов для конкретного файла из репозитория."""
     safe = re.sub(r"[^A-Za-z0-9_-]+", "-", source.stem).strip("-") or "dataset"
@@ -439,6 +647,57 @@ def save_csv(frame: pd.DataFrame, output: Path) -> Path:
     return output
 
 
+<<<<<<< HEAD
+=======
+def save_run_metadata(source: Path, output_dir: Path, parameters: dict | None = None) -> Path:
+    """Фиксирует источник, исходные байты, код, версии ПО и файлы результата."""
+    def checksum(path: Path) -> str:
+        digest = sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    try:
+        commit = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
+            capture_output=True, text=True, check=False,
+        )
+        commit_hash = commit.stdout.strip() if commit.returncode == 0 else None
+        status = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), "status", "--porcelain"],
+            capture_output=True, text=True, check=False,
+        )
+        worktree_clean = not status.stdout.strip() if status.returncode == 0 else None
+    except FileNotFoundError:
+        commit_hash = None
+        worktree_clean = None
+    try:
+        source_name = source.resolve().relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        source_name = str(source.resolve())
+    metadata = {
+        "source": source_name,
+        "source_sha256": checksum(source),
+        "created_utc": datetime.now(timezone.utc).isoformat(),
+        "git_commit": commit_hash,
+        "git_worktree_clean": worktree_clean,
+        "code_sha256": {name: checksum(REPO_ROOT / name)
+                        for name in ("ipd_analysis.py", "run_analysis.py", "analysis_config.json")
+                        if (REPO_ROOT / name).is_file()},
+        "python": platform.python_version(),
+        "numpy": np.__version__, "pandas": pd.__version__,
+        "matplotlib": version("matplotlib"),
+        "parameters": parameters or {},
+        "files": sorted(path.name for path in output_dir.iterdir()
+                        if path.is_file() and path.name != "metadata.json"),
+    }
+    destination = output_dir / "metadata.json"
+    destination.write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return destination
+
+
+>>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
 def export_labplot(profiles: pd.DataFrame) -> pd.DataFrame:
     """Одна таблица с английскими именами столбцов для импорта в LabPlot."""
     result = pd.DataFrame({"Hour": np.arange(1440) / 60})
