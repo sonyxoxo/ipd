@@ -101,7 +101,7 @@ class ElectricityAnalysisTest(unittest.TestCase):
 
     def test_notebooks_have_latin_identifiers_and_no_uploads(self):
         notebooks = list((analysis.REPO_ROOT / "ноутбуки python").glob("*.ipynb"))
-        self.assertEqual(len(notebooks), 5)
+        self.assertEqual(len(notebooks), 6)
         for path in notebooks:
             notebook = json.loads(path.read_text(encoding="utf-8"))
             for cell in notebook["cells"]:
