@@ -7,11 +7,6 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-<<<<<<< HEAD
-from hashlib import sha256
-from pathlib import Path
-import re
-=======
 from datetime import datetime, timezone
 from hashlib import sha256
 from importlib.metadata import version
@@ -20,7 +15,6 @@ from pathlib import Path
 import platform
 import re
 import subprocess
->>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
 import zipfile
 
 import numpy as np
@@ -37,10 +31,7 @@ MEASUREMENTS = (
 SEASONAL_EXAMPLE = ("2008-01", "2008-04", "2008-07", "2008-09")
 MISSING_EXAMPLE = ("2009-08", "2010-08")
 VALID_EXTENSIONS = {".txt", ".csv", ".tsv", ".zip"}
-<<<<<<< HEAD
-=======
 CONFIG_PATH = REPO_ROOT / "analysis_config.json"
->>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
 
 
 def input_files(raw_dir: Path = RAW_DIR) -> list[Path]:
@@ -78,8 +69,6 @@ def choose_source(source: str | Path | None = None) -> Path:
     return files[0]
 
 
-<<<<<<< HEAD
-=======
 def dataset_config(source: Path) -> dict:
     """Читает явное сопоставление названий/единиц конкретного источника.
 
@@ -101,7 +90,6 @@ def dataset_config(source: Path) -> dict:
     return selected
 
 
->>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
 @contextmanager
 def _source_stream(path: Path):
     """Открывает файл или единственный поддерживаемый файл внутри ZIP."""
@@ -124,22 +112,13 @@ def _source_stream(path: Path):
             yield stream
 
 
-<<<<<<< HEAD
-def load_measurements(source: str | Path | None = None) -> pd.DataFrame:
-=======
 def load_measurements(source: str | Path | None = None, config: dict | None = None) -> pd.DataFrame:
->>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
     """Один раз читает файл, проверяет схему и создаёт числовую рабочую таблицу.
 
     Допустимы исходные столбцы Date + Time или один столбец datetime/timestamp.
     Для неизвестного формата выводится понятная ошибка, без угадывания физики.
     """
     path = choose_source(source)
-<<<<<<< HEAD
-    with _source_stream(path) as stream:
-        header = stream.readline().decode("utf-8-sig").strip()
-    delimiter = max((";", "\t", ","), key=header.count)
-=======
     settings = dataset_config(path) if config is None else config
     columns = settings.get("columns", {})
     units = settings.get("units", {})
@@ -154,25 +133,10 @@ def load_measurements(source: str | Path | None = None, config: dict | None = No
     with _source_stream(path) as stream:
         header = stream.readline().decode(encoding).lstrip("\ufeff").strip()
     delimiter = settings.get("delimiter") or max((";", "\t", ","), key=header.count)
->>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
     if header.count(delimiter) == 0:
         raise ValueError(f"Не удалось распознать разделитель столбцов в {path.name}")
     with _source_stream(path) as stream:
         raw = pd.read_csv(
-<<<<<<< HEAD
-            stream, sep=delimiter, encoding="utf-8-sig", low_memory=False,
-            na_values=["?", "", "NA", "N/A", "NULL", "null"],
-        )
-    raw.columns = raw.columns.str.strip()
-    if "Date" in raw and "Time" in raw:
-        timestamps = pd.to_datetime(
-            raw["Date"].astype("string") + " " + raw["Time"].astype("string"),
-            format="%d/%m/%Y %H:%M:%S", errors="coerce",
-        )
-    elif "timestamp" in raw or "datetime" in raw:
-        time_column = "timestamp" if "timestamp" in raw else "datetime"
-        timestamps = pd.to_datetime(raw[time_column], errors="coerce")
-=======
             stream, sep=delimiter, encoding=encoding, low_memory=False,
             decimal=settings.get("decimal", "."),
             na_values=["?", "", "NA", "N/A", "NULL", "null"],
@@ -191,7 +155,6 @@ def load_measurements(source: str | Path | None = None, config: dict | None = No
     elif timestamp_column in raw:
         timestamps = pd.to_datetime(raw[timestamp_column],
                                     format=settings.get("date_format"), errors="coerce")
->>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
     else:
         raise ValueError(
             f"{path.name}: нужны Date и Time либо timestamp/datetime. "
@@ -202,11 +165,7 @@ def load_measurements(source: str | Path | None = None, config: dict | None = No
             f"{path.name}: не удалось распознать {int(timestamps.isna().sum())} "
             "временных меток. Проверьте формат дат."
         )
-<<<<<<< HEAD
-    present = [name for name in MEASUREMENTS if name in raw]
-=======
     present = [name for name in MEASUREMENTS if columns.get(name, name) in raw]
->>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
     if "Global_active_power" not in present:
         raise ValueError(
             f"{path.name}: нет Global_active_power (активная мощность в кВт). "
@@ -215,10 +174,6 @@ def load_measurements(source: str | Path | None = None, config: dict | None = No
     data = pd.DataFrame({"timestamp": timestamps})
     unknown_values = {}
     for name in present:
-<<<<<<< HEAD
-        number = pd.to_numeric(raw[name], errors="coerce")
-        unknown_values[name] = int((raw[name].notna() & number.isna()).sum())
-=======
         source_column = columns.get(name, name)
         if source_column != name and name not in units:
             raise ValueError(f"{path.name}: задайте физическую единицу units.{name}")
@@ -254,7 +209,6 @@ def load_measurements(source: str | Path | None = None, config: dict | None = No
             if factor is None:
                 raise ValueError(f"Не поддерживается единица реактивной мощности: {unit}")
             number = number * factor
->>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
         finite = pd.Series(np.isfinite(number.to_numpy(dtype=float)), index=raw.index)
         valid = finite & number.notna()
         if name == "Voltage":
@@ -269,10 +223,7 @@ def load_measurements(source: str | Path | None = None, config: dict | None = No
         "unknown_values": unknown_values,
         "original_rows": len(raw),
         "measurement_columns": present,
-<<<<<<< HEAD
-=======
         "schema_config": settings,
->>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
     })
     return data
 
@@ -524,15 +475,11 @@ def missing_experiment(minutes: pd.DataFrame, preferred_month: str = "2008-09", 
     random_missing.loc[rng.choice(len(original), gap_count, replace=False), "Global_active_power"] = np.nan
     scenarios["random"] = random_missing
     block_missing = original.copy()
-<<<<<<< HEAD
-    block_start = (len(original) - gap_count) // 2
-=======
     # Максимально близкий к середине месяца старт в 00:00. Для исходного
     # сентября 2008 года это ровно 15–17 сентября, как в опубликованном опыте.
     center_start = (len(original) - gap_count) // 2
     block_start = min(((center_start + 720) // 1440) * 1440,
                       len(original) - gap_count)
->>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
     block_missing.loc[block_start:block_start + gap_count - 1, "Global_active_power"] = np.nan
     scenarios["continuous"] = block_missing
     profiles = []
@@ -553,17 +500,12 @@ def missing_experiment(minutes: pd.DataFrame, preferred_month: str = "2008-09", 
             "missing_count": int(scenario["Global_active_power"].isna().sum()),
             "mean_kw": scenario["Global_active_power"].mean(),
             "mae_kw": differences.abs().mean() if len(differences) else np.nan,
-<<<<<<< HEAD
-=======
             "missing_start": str(original["timestamp"].iloc[block_start]) if scenario_name == "continuous" else "",
             "missing_end": str(original["timestamp"].iloc[block_start + gap_count - 1]) if scenario_name == "continuous" else "",
->>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
         })
     return combined, pd.DataFrame(metrics)
 
 
-<<<<<<< HEAD
-=======
 def missing_experiment_robustness(
     minutes: pd.DataFrame, preferred_month: str = "2008-09",
     fraction: float = 0.1, seed: int = 2026, random_repetitions: int = 100,
@@ -629,7 +571,6 @@ def missing_experiment_robustness(
     return trials, summary
 
 
->>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
 def result_folder(source: Path) -> Path:
     """Уникальная папка результатов для конкретного файла из репозитория."""
     safe = re.sub(r"[^A-Za-z0-9_-]+", "-", source.stem).strip("-") or "dataset"
@@ -647,8 +588,6 @@ def save_csv(frame: pd.DataFrame, output: Path) -> Path:
     return output
 
 
-<<<<<<< HEAD
-=======
 def save_run_metadata(source: Path, output_dir: Path, parameters: dict | None = None) -> Path:
     """Фиксирует источник, исходные байты, код, версии ПО и файлы результата."""
     def checksum(path: Path) -> str:
@@ -697,7 +636,6 @@ def save_run_metadata(source: Path, output_dir: Path, parameters: dict | None = 
     return destination
 
 
->>>>>>> 2d58bc45e57904272e3a30d5b66a02aefca628c0
 def export_labplot(profiles: pd.DataFrame) -> pd.DataFrame:
     """Одна таблица с английскими именами столбцов для импорта в LabPlot."""
     result = pd.DataFrame({"Hour": np.arange(1440) / 60})
